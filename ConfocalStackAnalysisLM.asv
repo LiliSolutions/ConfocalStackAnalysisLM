@@ -21,7 +21,6 @@ else
 end
 % End initialization code - DO NOT EDIT
 
-
 %% --- Executes just before ConfocalStackAnalysisLM is made visible.
 function ConfocalStackAnalysisLM_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
@@ -58,7 +57,6 @@ function varargout = ConfocalStackAnalysisLM_OutputFcn(hObject, eventdata, handl
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-
 function ConfocalStackAnalysisLM_Callback(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
@@ -73,7 +71,6 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 %set(hObject, 'KeyPressFcn', @fKeyPress);
-
 
 % --- Executes on button press in loadImageStack.
 function loadImageStack_Callback(hObject, eventdata, handles)
@@ -95,12 +92,12 @@ if sel
            set(hObject,'Value',0);
            return
          end
-    end
-    fullFN = fullfile(pathName, fileName);
-    disp('==');     
-    disp(['==Processing ' fullFN]);     
-    caption = sprintf('ConfocalStackAnalysisLMv1.2 >>%s', fullFN);
-    set(gcf, 'Name', caption );
+     end
+     fullFN = fullfile(pathName, fileName);
+     disp('==');     
+     disp(['==Processing ' fullFN]);     
+     caption = sprintf('ConfocalStackAnalysisLMv1.2 >>%s', fullFN);
+     set(gcf, 'Name', caption );
 
     %% load stack
     info = imfinfo(fullFN);
@@ -125,12 +122,12 @@ if sel
     end
     set_tresh;
     activeFrame = 1;
-    step1 = 1;
     draw_frame(hObject, eventdata, handles);
+    step1 = 1;
     h = msgbox('Load confocal stack Done.');
-    pause(1); close(h);
+    pause(1);
+    close(h);
 end
-
 
 function runAnalysis_Callback(hObject, eventdata, handles)
 % hObject    handle to runAnalysis (see GCBO)
@@ -149,6 +146,7 @@ if sel
     for i = 1:num_images
         fr = zxy_stack(i,:,:,:);
         fr = squeeze(fr);
+        %getStats1(fr,i);
         getStats2(fr,i);
         set(handles.uitable1,'data',statFr);
         waitbar(i/num_images, hB, 'Image Analysis in progress...');    
@@ -159,9 +157,9 @@ if sel
     rowMean = mean(statFr(:,1:num_images),2);
     statFr = horzcat(statFr,rowMean);
     set(handles.uitable1,'data',statFr);    
-    step2 = 1;
     waitbar(1, hB, 'Image Analysis in progress...');   
     close(hB);
+    step2 = 1;
 end
 
 
@@ -201,6 +199,7 @@ if sel
         xlsappend(fn,rows2,1);   
     end
     disp(['Save results to excel Done. File ' fn]);
+    %pause(0.5); close(h);    
 end
 
 
@@ -329,9 +328,11 @@ r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
 % gM = reshape(g,[1,elems]);
 % %m0(m0==0) = [];
 
+
 %% get newGreen
  [n1, n2] = size(g(:,:));
  newGreen = g;
+ %imageF = figure;
  for i = 1:n1
     for j = 1:n2
         if (b(i,j) < blueMinTresh) || (g(i,j) <= greenMinTresh) %(blue(i,j) < 20.4) || (green(i,j) <= 12)
