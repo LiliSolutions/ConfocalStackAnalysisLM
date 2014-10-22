@@ -99,7 +99,7 @@ if sel
     fullFN = fullfile(pathName, fileName);
     disp('==');     
     disp(['==Processing ' fullFN]);     
-    caption = sprintf('ConfocalStackAnalysisLMv1.2 >>%s', fullFN);
+    caption = sprintf('ConfocalStackAnalysisLMv2.0 >>%s', fullFN);
     set(gcf, 'Name', caption );
 
     %% load stack
@@ -735,14 +735,15 @@ if exist(fn,'file')
 end
 
 hB = waitbar(0, 'Global Analysis in progress...');
-rows1 = {{'_'},[]};
+rows0 = {{'StackName'},{'B/G Mean'},{'B/G Max'},{'B/G Sum'}};
+rows1 = {{'_'},[],[],[]};
 for i = 1:n
     fileName = rootDirs(i).name;
     if strcmp(fileName,'.') || strcmp(fileName,'..')
         continue
     end
     fullFN = fullfile(pathName, fileName);
-    localFN = [fullFN '\ConfocalStats.xls'];
+    localFN = [fullFN '\' fileName '_GB_stats.xls'];
     if ~exist(localFN,'file')   
         disp(['==No Excel file found in ' fullFN '. Skip folder.']);
         continue
@@ -752,12 +753,14 @@ for i = 1:n
     waitbar(i/n, hB, 'Global Analysis in progress...');    
 end
 
-% write stats to excel file
+% % write stats to excel file
 % if ~exist(fn,'file')
-%     xlswrite(fn,'_'); 
+%     xlswrite(fn,rows0); 
 % end
-%[success,message] = xlsappend(fn,rows1);
-xlswrite(fn,rows1);
+% [success,message] = xlsappend(fn,rows1);
+%%
+xlswrite(fn,rows0); 
+xlsappend(fn,rows1);
 
 waitbar(1, hB, 'Global Analysis in progress...');   
 close(hB);
@@ -773,23 +776,35 @@ global fullFN globalRoot
     n = length(alldata(:,1));
     i = 1; k = 0;
     while i <= n
-        var1 = alldata(i,1);
-        var2 = alldata(i,2);
-        if strcmp(var1{1},'_') && isnan(var2{1})
+        var1 = alldata{i,1};
+        var2 = alldata{i,2};
+        if strcmp(var1,'_') && isnan(var2)
             k = k+1;
             stackName(k) = alldata(i+1,1);
-            nrFrames = alldata(i+1,3);
-            var3 = alldata(i+10,nrFrames{1}+3);
-            stackInt(k) = var3{1};
+            nrFrames = alldata{i+1,3};
+            % Mean of G/B row
+            stackMean(k) = alldata{i+10,nrFrames+3}; 
+            % Max  of G/B row
+            v = alldata(i+10,[2:nrFrames+1]);
+            stackMax(k) = max( cell2mat(v)); 
+            % Sum(G)/Sum(B) row
+            vG = alldata(i+8,[2:nrFrames+1]);
+            vB = alldata(i+9,[2:nrFrames+1]);
+            sumG = sum( cell2mat(vG), 2);
+            sumB = sum( cell2mat(vB), 2);
+            stackSum(k) = sumG/sumB;
             %writeStat(globalFN,stackName,stackInt);
             %rows1 = '*';
             i = i + 10;
         end
         i = i + 1;
     end
-c1 = stackName';
-c2 = num2cell(stackInt');
-rowsData = horzcat(c1,c2);
+rowsData = stackName';
+c2 = num2cell(stackMean');
+rowsData = horzcat(rowsData,c2);
+c2 = num2cell(stackMax');
+rowsData = horzcat(rowsData,c2);
+c2 = num2cell(stackSum');
+rowsData = horzcat(rowsData,c2);
 
     
-
