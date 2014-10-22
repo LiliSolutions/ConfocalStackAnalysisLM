@@ -677,12 +677,12 @@ function batchMode_Callback(hObject, eventdata, handles)
 % hObject    handle to batchMode (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global fileName pathName fullFN batchModeOn batchRoot
+global fileName pathName fullFN batchModeOn batchRoot home
 
 % select batch root global batchRoot
 %
 batchModeOn = 1;
-batchRoot = uigetdir('F:\Lilia\4Wing\','Select Batch Folder');
+batchRoot = uigetdir(home,'Select Batch Folder');
 if isequal(batchRoot,0)
     disp('User selected Cancel');
     set(hObject,'Value',0);
@@ -700,3 +700,96 @@ for i = 1:n
     ConfocalStackAnalysisLM('runAll_Callback',hObject,eventdata,guidata(hObject));
 end
 disp('==Batch Processing Done.');
+
+
+% --- Executes on button press in globalStats.
+function globalStats_Callback(hObject, eventdata, handles)
+% hObject    handle to globalStats (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global fileName pathName fullFN batchModeOn batchRoot
+global home globalRoot
+
+%select globalRoot
+globalRoot = uigetdir(home,'Select Root Folder');
+if isequal(globalRoot,0)
+    disp('User selected Cancel');
+    set(hObject,'Value',0);
+    return
+else   
+    disp(['User selected ', globalRoot])
+end
+
+pathName = globalRoot;
+rootDirs = dir(fullfile(globalRoot));
+n = length(rootDirs);
+if ~n 
+    disp('==No files found.');
+    return
+end
+
+fn = [globalRoot '\GlobalStats.xls'];
+if exist(fn,'file')   
+    msgbox('GlobalStats.xls file exists.');
+    return
+end
+
+hB = waitbar(0, 'Global Analysis in progress...');
+rows1 = {{'_'},[]};
+for i = 1:n
+    fileName = rootDirs(i).name;
+    if strcmp(fileName,'.') || strcmp(fileName,'..')
+        continue
+    end
+    fullFN = fullfile(pathName, fileName);
+    localFN = [fullFN '\ConfocalStats.xls'];
+    if ~exist(localFN,'file')   
+        disp(['==No Excel file found in ' fullFN '. Skip folder.']);
+        continue
+    end
+    [newRows] = getStats(localFN);
+    rows1 = vertcat(rows1,newRows);
+    waitbar(i/n, hB, 'Global Analysis in progress...');    
+end
+
+% write stats to excel file
+% if ~exist(fn,'file')
+%     xlswrite(fn,'_'); 
+% end
+%[success,message] = xlsappend(fn,rows1);
+xlswrite(fn,rows1);
+
+waitbar(1, hB, 'Global Analysis in progress...');   
+close(hB);
+msgbox('Global statistics saved to Excel.');
+
+
+function [rowsData] = getStats(localFN)
+global fullFN globalRoot
+
+%% open each folder, read statistics and append to the global
+    rowsData = [];
+    [ndata, text, alldata] = xlsread(localFN);
+    n = length(alldata(:,1));
+    i = 1; k = 0;
+    while i <= n
+        var1 = alldata(i,1);
+        var2 = alldata(i,2);
+        if strcmp(var1{1},'_') && isnan(var2{1})
+            k = k+1;
+            stackName(k) = alldata(i+1,1);
+            nrFrames = alldata(i+1,3);
+            var3 = alldata(i+10,nrFrames{1}+3);
+            stackInt(k) = var3{1};
+            %writeStat(globalFN,stackName,stackInt);
+            %rows1 = '*';
+            i = i + 10;
+        end
+        i = i + 1;
+    end
+c1 = stackName';
+c2 = num2cell(stackInt');
+rowsData = horzcat(c1,c2);
+
+    
+
