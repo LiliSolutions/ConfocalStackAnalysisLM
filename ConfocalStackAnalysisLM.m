@@ -1,6 +1,6 @@
 function varargout = ConfocalStackAnalysisLM(varargin)
 %% Lilia Mesina, Polaris/CCBN, Sptember2014
-% Last Modified by LM, 23Sept2014
+% Last Modified by LM, 1Dec2014
 
 %% Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -31,7 +31,14 @@ function ConfocalStackAnalysisLM_OpeningFcn(hObject, eventdata, handles, varargi
 % varargin   command line arguments to ConfocalStackAnalysisLM (see VARARGIN)
 
 % Choose default command line output for ConfocalStackAnalysisLM
-global step1 step2 step3 batchModeOn
+global step1 step2 step3 
+global runAllStepsOn batchModeOn
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+
+
+
 handles.output = hObject;
 
 % Update handles structure
@@ -39,6 +46,8 @@ guidata(hObject, handles);
 %set(hObject, 'KeyPressFcn',@fKeyPress);
 movegui(hObject,'northwest');
 
+modeMultip = [];
+runAllStepsOn = 0;
 axis(handles.axes1, 'ij', 'on','square');
 step1 = 0; step2 = 0; step3 = 0;
 batchModeOn = 0;
@@ -46,6 +55,8 @@ batchModeOn = 0;
 home = pwd;
 addpath(genpath(home));
 fprintf(2, 'ConfocalStackAnalysisLM Path Loaded!');
+
+
 
 
 %% --- Outputs from this function are returned to the command line.
@@ -82,13 +93,18 @@ function loadImageStack_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 global activeFrame step1 step2 step3
-global fileName pathName fullFN batchModeOn
+global fileName pathName fullFN batchModeOn runAllStepsOn
 global elems statFr zxy_stack num_images
 global newGreenS newBlueS 
 
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+
+
 sel = get(hObject,'Value');
 if sel
-    if ~batchModeOn
+    if ~batchModeOn || ~runAllStepsOn
          [fileName, pathName] = uigetfile({'*.tif';'*.*'},'Stack Selector');
          if isequal(fileName,0)
            disp('User selected Cancel');
@@ -99,7 +115,7 @@ if sel
     fullFN = fullfile(pathName, fileName);
     disp('==');     
     disp(['==Processing ' fullFN]);     
-    caption = sprintf('ConfocalStackAnalysisLMv2.0 >>%s', fullFN);
+    caption = sprintf('ConfocalStackAnalysisLMv2.1 >>%s', fullFN);
     set(gcf, 'Name', caption );
 
     %% load stack
@@ -123,7 +139,7 @@ if sel
         set(handles.uitable1,'data',statFr);
         pause(0.01);
     end
-    set_tresh;
+    if isempty(modeMultip), set_tresh; end
     activeFrame = 1;
     step1 = 1;
     draw_frame(hObject, eventdata, handles);
@@ -138,6 +154,10 @@ function runAnalysis_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global statFr zxy_stack num_images
 global step1 step2
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+
 
 sel = get(hObject,'Value');
 if sel
@@ -171,6 +191,10 @@ function save_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global step2 statFr fullFN num_images
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+
 
 sel = get(hObject,'Value');
 if sel
@@ -182,6 +206,13 @@ if sel
     rows1 = {'_','','';'','Frames:',''}; 
     rows1{2,1} = imgName;
     rows1{2,3} = num_images;
+    rows1{2,4}  = 'redMinTresh';     rows1{2,5}  = redMinTresh;
+    rows1{2,6}  = 'redMaxTresh';     rows1{2,7}  = redMaxTresh;
+    rows1{2,8}  = 'greenMinTresh';   rows1{2,9}  = greenMinTresh;
+    rows1{2,10} = 'greenMaxTresh';   rows1{2,11} = greenMaxTresh;
+    rows1{2,12} = 'blueMinTresh';    rows1{2,13} = blueMinTresh;
+    rows1{2,14} = 'blueMaxTresh';    rows1{2,15} = blueMaxTresh;
+    rows1{2,16} = 'modeMultip';      rows1{2,17} = modeMultip;
     rows2 = {'MinGreen';'MaxGreen';'MinBlue';'MaxBlue';'MeanGreen';...
              'GreenPixels';'BluePixels';'G/B'};
     mat2 = num2cell(statFr);
@@ -369,6 +400,7 @@ newBlueS(k,:,:) = newBlue;
 
 function set_tresh()
 global elems num_images statFr zxy_stack
+global redMinTresh redMaxTresh 
 global greenMinTresh greenMaxTresh 
 global blueMinTresh blueMaxTresh modeMultip
 
@@ -531,7 +563,6 @@ function gMinTresh_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of gMinTresh as text
 %        str2double(get(hObject,'String')) returns contents of gMinTresh as a double
 global greenMinTresh greenMaxTresh
-global blueMinTresh blueMaxTresh
 
 val = get(handles.gMinTresh,'string');
 greenMinTresh = str2double(val); 
@@ -559,8 +590,7 @@ function gMaxTresh_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of gMaxTresh as text
 %        str2double(get(hObject,'String')) returns contents of gMaxTresh as a double
-global greenMinTresh greenMaxTresh
-global blueMinTresh blueMaxTresh
+global greenMaxTresh
 
 val = get(handles.gMaxTresh,'string');
 greenMaxTresh = str2double(val); 
@@ -585,8 +615,7 @@ function bMinTresh_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of bMinTresh as text
 %        str2double(get(hObject,'String')) returns contents of bMinTresh as a double
-global greenMinTresh greenMaxTresh
-global blueMinTresh blueMaxTresh
+global blueMinTresh 
 
 val = get(handles.bMinTresh,'string');
 blueMinTresh = str2double(val); 
@@ -611,8 +640,7 @@ function bMaxTresh_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of bMaxTresh as text
 %        str2double(get(hObject,'String')) returns contents of bMaxTresh as a double
-global greenMinTresh greenMaxTresh
-global blueMinTresh blueMaxTresh
+global blueMaxTresh
 
 val = get(handles.bMaxTresh,'string');
 blueMaxTresh = str2double(val); 
@@ -664,7 +692,12 @@ function runAll_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global fullFN
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+global runAllStepsOn
 
+runAllStepsOn = 1;
 ConfocalStackAnalysisLM('loadImageStack_Callback',hObject,eventdata,guidata(hObject));
 ConfocalStackAnalysisLM('runAnalysis_Callback',hObject,eventdata,guidata(hObject));
 ConfocalStackAnalysisLM('save_Callback',hObject,eventdata,guidata(hObject));
@@ -678,6 +711,10 @@ function batchMode_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global fileName pathName fullFN batchModeOn batchRoot home
+global redMinTresh redMaxTresh 
+global greenMinTresh greenMaxTresh 
+global blueMinTresh blueMaxTresh modeMultip
+
 
 % select batch root global batchRoot
 %
