@@ -95,7 +95,7 @@ function loadImageStack_Callback(hObject, eventdata, handles)
 global activeFrame step1 step2 step3
 global fileName pathName fullFN batchModeOn runAllStepsOn
 global elems statFr zxy_stack num_images
-global newGreenS newBlueS 
+global newRedS newGreenS newBlueS 
 
 global redMinTresh redMaxTresh 
 global greenMinTresh greenMaxTresh 
@@ -115,7 +115,7 @@ if sel
     fullFN = fullfile(pathName, fileName);
     disp('==');     
     disp(['==Processing ' fullFN]);     
-    caption = sprintf('ConfocalStackAnalysisLMv2.1 >>%s', fullFN);
+    caption = sprintf('ConfocalStackAnalysisLMv2.2 >>%s', fullFN);
     set(gcf, 'Name', caption );
 
     %% load stack
@@ -123,11 +123,12 @@ if sel
     [img_size1 img_size2 img_size3]=size(imread(fullFN, 1, 'Info', info));
     img_type=['uint' num2str(info(1).BitDepth)];
     num_images = numel(info);
-    elems = 1024.^2;
-    statFr = zeros(8,num_images);
+    elems  = img_size1 * img_size2; %1024.^2;
+    statFr    = zeros(13,num_images); 
     zxy_stack = zeros([num_images img_size1 img_size2 img_size3],'uint8'); %, img_type);
+    newRedS   = zeros([num_images img_size1 img_size2]);
     newGreenS = zeros([num_images img_size1 img_size2]);
-    newBlueS = zeros([num_images img_size1 img_size2]);
+    newBlueS  = zeros([num_images img_size1 img_size2]);
 
     for k = 1:num_images
         A = imread(fullFN, k, 'Info', info);
@@ -139,10 +140,13 @@ if sel
         set(handles.uitable1,'data',statFr);
         pause(0.01);
     end
-    if isempty(modeMultip), set_tresh; end
+    if isempty(modeMultip)
+        set_tresh; 
+    end
     activeFrame = 1;
     step1 = 1;
     draw_frame(hObject, eventdata, handles);
+    set(hObject,'Value',1);
     h = msgbox('Load confocal stack Done.');
     pause(1); close(h);
 end
@@ -157,6 +161,7 @@ global step1 step2
 global redMinTresh redMaxTresh 
 global greenMinTresh greenMaxTresh 
 global blueMinTresh blueMaxTresh modeMultip
+global newRedS newGreenS newBlueS
 
 
 sel = get(hObject,'Value');
@@ -179,6 +184,7 @@ if sel
     rowMean = mean(statFr(:,1:num_images),2);
     statFr = horzcat(statFr,rowMean);
     set(handles.uitable1,'data',statFr);    
+    set(hObject,'Value',1);
     step2 = 1;
     waitbar(1, hB, 'Image Analysis in progress...');   
     close(hB);
@@ -213,8 +219,11 @@ if sel
     rows1{2,12} = 'blueMinTresh';    rows1{2,13} = blueMinTresh;
     rows1{2,14} = 'blueMaxTresh';    rows1{2,15} = blueMaxTresh;
     rows1{2,16} = 'modeMultip';      rows1{2,17} = modeMultip;
-    rows2 = {'MinGreen';'MaxGreen';'MinBlue';'MaxBlue';'MeanGreen';...
-             'GreenPixels';'BluePixels';'G/B'};
+    rows1{2,18} = 'AnalysisDate';            rows1{2,19} = datestr(now);
+    rows2 = {'MinRed';'MaxRed';'MinGreen';'MaxGreen';...
+             'MinBlue';'MaxBlue';'MeanRed';'MeanGreen';...
+             'RedPixels';'GreenPixels';'BluePixels';...
+             'R/B';'G/B'};
     mat2 = num2cell(statFr);
     rows2 = horzcat(rows2,mat2);
     cellArray = strcat({'Frame'},int2str((1:num_images).')).';
@@ -240,13 +249,13 @@ function exit_Callback(hObject, eventdata, handles)
 % hObject    handle to exit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-clear all;
 clc;
 close all;
 h = msgbox('Close Analysis Done.');
 pause(1);
 close(h);
 run ConfocalStackAnalysisLM;
+
 
 function first_frame_Callback(hObject, eventdata, handles)
 % hObject    handle to next_frame (see GCBO)
@@ -298,8 +307,6 @@ end
 draw_frame(hObject, eventdata, handles);
 
 
-
-
 %% Run GUI funcs
 function draw_frame(hObject, eventdata, handles)
 global zxy_stack activeFrame num_images
@@ -319,6 +326,10 @@ pause(0.1);
 
 
 function update_fig(hObject, eventdata, handles)
+hFig = findobj('Tag','newRedFig');
+if ~isempty(hFig)
+    ConfocalStackAnalysisLM('ShowNewRed_Callback',hObject,eventdata,guidata(hObject));
+end
 hFig = findobj('Tag','newGreenFig');
 if ~isempty(hFig)
     ConfocalStackAnalysisLM('ShowNewGreen_Callback',hObject,eventdata,guidata(hObject));
@@ -332,25 +343,26 @@ end
 function getStats1(fr,k)
 global elems statFr
 
-g = fr(:,:,2); 
-b = fr(:,:,3);
+r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
 
 %% get image profile
-bM = reshape(b,[1,elems]);
-gM = reshape(g,[1,elems]);
-bM = double(bM);
-gM = double(gM);
+rM = reshape(r,[1,elems]); rM = double(rM);
+gM = reshape(g,[1,elems]); gM = double(gM);
+bM = reshape(b,[1,elems]); bM = double(bM);
+
 %% get stats
-statFr(1,k) = min(gM);
-statFr(2,k) = max(gM);
-statFr(3,k) = min(bM);
-statFr(4,k) = max(bM);
+statFr(1,k) = min(rM);
+statFr(2,k) = max(rM);
+statFr(3,k) = min(gM);
+statFr(4,k) = max(gM);
+statFr(5,k) = min(bM);
+statFr(6,k) = max(bM);
 
 
 function getStats2(fr,k)
 global statFr
-global newGreenS newBlueS
-global greenMinTresh
+global newRedS newGreenS newBlueS
+global redMinTresh greenMinTresh
 global blueMinTresh blueMaxTresh
 
 r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
@@ -359,6 +371,23 @@ r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
 % %m0(m0==0) = [];
 % gM = reshape(g,[1,elems]);
 % %m0(m0==0) = [];
+
+%% get newRed
+ [n1, n2] = size(r(:,:));
+ newRed = r;
+ for i = 1:n1
+    for j = 1:n2
+        if (b(i,j) < blueMinTresh) || (r(i,j) <= redMinTresh) %(blue(i,j) < 20.4) || (green(i,j) <= 12)
+            newRed(i,j) = 0;
+        end
+    end
+ end
+ 
+ %image(newGreen(:,:));
+ red2 = find(newRed>0);
+ nR = length(red2);
+ nR2 = nR; %/elems;
+ statFr(9,k) = nR2;
 
 %% get newGreen
  [n1, n2] = size(g(:,:));
@@ -375,9 +404,9 @@ r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
  green2 = find(newGreen>0);
  nG = length(green2);
  nG2 = nG; %/elems;
- statFr(6,k) = nG2;
+ statFr(10,k) = nG2;
 
- %% get newBlue
+%% get newBlue
  [n1, n2] = size(b(:,:));
  newBlue = b;
  for i = 1:n1
@@ -391,10 +420,12 @@ r = fr(:,:,1); g = fr(:,:,2); b = fr(:,:,3);
 blue2 = find(newBlue>0);
 nB = length(blue2);
 nB2 = nB;%/elems;
-statFr(7,k) = nB2;
-statFr(8,k) = nG2/nB2;
+statFr(11,k) = nB2;
+statFr(12,k) = nR2/nB2;
+statFr(13,k) = nG2/nB2;
+newRedS(k,:,:)   = newRed;
 newGreenS(k,:,:) = newGreen;
-newBlueS(k,:,:) = newBlue;
+newBlueS(k,:,:)  = newBlue;
 %getStats1(fr,k);
 
 
@@ -405,23 +436,23 @@ global greenMinTresh greenMaxTresh
 global blueMinTresh blueMaxTresh modeMultip
 
 modeMultip = 1.2;       hObj = findobj('Tag', 'modeM');     set(hObj, 'String', num2str(modeMultip));
+redMinTresh = 12;       hObj = findobj('Tag', 'rMinTresh'); set(hObj, 'String', num2str(redMinTresh));
+redMaxTresh = 255;      hObj = findobj('Tag', 'rMaxTresh'); set(hObj, 'String', num2str(redMaxTresh));
 greenMinTresh = 12;     hObj = findobj('Tag', 'gMinTresh'); set(hObj, 'String', num2str(greenMinTresh));
 greenMaxTresh = 255;    hObj = findobj('Tag', 'gMaxTresh'); set(hObj, 'String', num2str(greenMaxTresh));
 blueMinTresh = 30;      hObj = findobj('Tag', 'bMinTresh'); set(hObj, 'String', num2str(blueMinTresh));
 blueMaxTresh = 230;     hObj = findobj('Tag', 'bMaxTresh'); set(hObj, 'String', num2str(blueMaxTresh));
 
+rMinTresh = zeros(num_images,1);
 gMinTresh = zeros(num_images,1);
 bMinTresh = zeros(num_images,1);
 hHist = figure();
-
 for i = 1:num_images
     fr = zxy_stack(i,:,:,:);
     fr = squeeze(fr);
     %fr3 = imagesc(fr);
-    g = fr(:,:,2); %imagesc(
-    b = fr(:,:,3); %imagesc(
-    
-%     %% clean Glia
+    r = fr(:,:,1);    g = fr(:,:,2);     b = fr(:,:,3); %imagesc(
+%%     %% clean Glia
 % figure
 % h2 =reshape(b,[1,elems]);
 % h2 = double(h2);
@@ -431,25 +462,32 @@ for i = 1:num_images
 % figure
 % bar(a1);
 % shg
-
-
-    h2 = reshape(g,[1,elems]);
-    %? make it double
-    statFr(5,i) = mean(h2);
+%%
+    h2r = reshape(r,[1,elems]);  statFr(7,i) = mean(h2r);
+    h2g = reshape(g,[1,elems]);  statFr(8,i) = mean(h2g); %? make it double
+    h2b = reshape(b,[1,elems]);
+    
+    h3 = imhist(r);
+    figure(hHist);
+    bar(h3); pause(0.5);
+    rMinTresh(i) = modeMultip * mode(h2r);
+    
     h3 = imhist(g);
     figure(hHist);
     bar(h3); pause(0.5);
-    gMinTresh(i) = modeMultip * mode(h2);
-    h2 = reshape(b,[1,elems]);
+    gMinTresh(i) = modeMultip * mode(h2g);    
+
     h3 = imhist(b);
     figure(hHist);
     bar(h3); pause(0.5);
-    bMinTresh(i) = modeMultip * mode(h2);
+    bMinTresh(i) = modeMultip * mode(h2b);
 end
 close(hHist);
+redMinTresh   = mean(rMinTresh);
 greenMinTresh = mean(gMinTresh);
-blueMinTresh = mean(bMinTresh);
+blueMinTresh  = mean(bMinTresh);
 
+hObj = findobj('Tag', 'rMinTresh'); set(hObj, 'String', num2str(redMinTresh));
 hObj = findobj('Tag', 'gMinTresh'); set(hObj, 'String', num2str(greenMinTresh));
 %greenMaxTresh = 255;    hObj = findobj('Tag', 'gMaxTresh'); set(hObj, 'String', num2str(greenMaxTresh));
 hObj = findobj('Tag', 'bMinTresh'); set(hObj, 'String', num2str(blueMinTresh));
@@ -502,6 +540,35 @@ function uitable1_DeleteFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
+% --- Executes on button press in ShowNewRed.
+function ShowNewRed_Callback(hObject, eventdata, handles)
+% hObject    handle to ShowNewRed (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of ShowNewRed
+global newRedS activeFrame statFr
+
+sel = get(hObject,'Value');
+if sel
+    if ~mean(statFr(7,:))
+        hM = msgbox('First run Step 2: Image Analysis.');
+        set(hObject,'Value',0);
+        return
+    end
+    hFig = findobj('Tag','newRedFig');
+    if isempty(hFig)
+        hFig = figure('Tag','newRedFig','Name','NewRed','NumberTitle','off');
+    end
+    figure(hFig);
+    caption = ['New Red: Frame ' num2str(activeFrame)];
+    set(hFig,'Name',caption);
+    im = newRedS(activeFrame,:,:);
+    im = squeeze(im);
+    imagesc(im);
+end
+
+
 % --- Executes on button press in ShowNewGreen.
 function ShowNewGreen_Callback(hObject, eventdata, handles)
 % hObject    handle to ShowNewGreen (see GCBO)
@@ -511,7 +578,7 @@ global newGreenS activeFrame statFr
 
 sel = get(hObject,'Value');
 if sel
-    if ~mean(statFr(5,:))
+    if ~mean(statFr(8,:))
         hM = msgbox('First run Step 2: Image Analysis.');
         set(hObject,'Value',0);
         return
@@ -537,7 +604,7 @@ global newBlueS activeFrame statFr
 
 sel = get(hObject,'Value');
 if sel
-    if ~mean(statFr(5,:))
+    if ~mean(statFr(8,:))
         hM = msgbox('First run Step 2: Image Analysis.');
         set(hObject,'Value',0);
         return
@@ -580,7 +647,6 @@ function gMinTresh_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 
 function gMaxTresh_Callback(hObject, eventdata, handles)
@@ -657,7 +723,6 @@ function bMaxTresh_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 
 function modeM_Callback(hObject, eventdata, handles)
@@ -844,4 +909,149 @@ rowsData = horzcat(rowsData,c2);
 c2 = num2cell(stackSum');
 rowsData = horzcat(rowsData,c2);
 
-    
+
+
+function rMinTresh_Callback(hObject, eventdata, handles)
+% hObject    handle to rMinTresh (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of rMinTresh as text
+%        str2double(get(hObject,'String')) returns contents of rMinTresh as a double
+global redMinTresh redMaxTresh
+
+val = get(handles.rMinTresh,'string');
+redMinTresh = str2double(val); 
+disp(['redMinTresh ' val]);
+
+% --- Executes during object creation, after setting all properties.
+function rMinTresh_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to rMinTresh (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function rMaxTresh_Callback(hObject, eventdata, handles)
+% hObject    handle to rMaxTresh (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of rMaxTresh as text
+%        str2double(get(hObject,'String')) returns contents of rMaxTresh as a double
+global redMaxTresh
+
+val = get(handles.rMaxTresh,'string');
+redMaxTresh = str2double(val); 
+disp(['redMaxTresh ' val]);
+
+% --- Executes during object creation, after setting all properties.
+function rMaxTresh_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to rMaxTresh (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+%{
+% --- Executes on button press in pushbutton15.
+function pushbutton15_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton15 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton16.
+function pushbutton16_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton17.
+function pushbutton17_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton17 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton18.
+function pushbutton18_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton19.
+function pushbutton19_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton19 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in checkbox8.
+function checkbox8_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox8 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox8
+
+
+% --- Executes on button press in checkbox9.
+function checkbox9_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox9
+
+
+% --- Executes on button press in checkbox10.
+function checkbox10_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox10
+
+
+% --- Executes on button press in checkbox11.
+function checkbox11_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox11
+
+
+% --- Executes on button press in pushbutton23.
+function pushbutton23_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton23 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton24.
+function pushbutton24_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton24 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton25.
+function pushbutton25_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton25 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%}
