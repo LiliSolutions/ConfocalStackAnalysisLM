@@ -31,6 +31,7 @@ function ConfocalStackAnalysisLM_OpeningFcn(hObject, eventdata, handles, varargi
 % varargin   command line arguments to ConfocalStackAnalysisLM (see VARARGIN)
 
 % Choose default command line output for ConfocalStackAnalysisLM
+global ver
 global step1 step2 step3 
 global runAllStepsOn batchModeOn
 global redMinTresh redMaxTresh 
@@ -46,7 +47,13 @@ guidata(hObject, handles);
 %set(hObject, 'KeyPressFcn',@fKeyPress);
 movegui(hObject,'northwest');
 
+%inint vars
+ver = '2.3';
 modeMultip = [];
+redMinTresh   = [];     redMaxTresh   = [];
+greenMinTresh = [];     greenMaxTresh = [];
+blueMinTresh  = [];     blueMaxTresh  = [];
+
 runAllStepsOn = 0;
 axis(handles.axes1, 'ij', 'on','square');
 step1 = 0; step2 = 0; step3 = 0;
@@ -100,6 +107,7 @@ global newRedS newGreenS newBlueS
 global redMinTresh redMaxTresh 
 global greenMinTresh greenMaxTresh 
 global blueMinTresh blueMaxTresh modeMultip
+global ver
 
 
 sel = get(hObject,'Value');
@@ -115,7 +123,7 @@ if sel
     fullFN = fullfile(pathName, fileName);
     disp('==');     
     disp(['==Processing ' fullFN]);     
-    caption = sprintf('ConfocalStackAnalysisLMv2.2 >>%s', fullFN);
+    caption = sprintf('ConfocalStackAnalysisLMv%s >>%s', ver, fullFN);
     set(gcf, 'Name', caption );
 
     %% load stack
@@ -178,10 +186,10 @@ if sel
         set(handles.uitable1,'data',statFr);
         waitbar(i/num_images, hB, 'Image Analysis in progress...');    
     end
-    stdDev = std(statFr,0,2);
+    stdDev = nanstd(statFr,0,2);
     statFr(:,num_images+1:end) = [];
     statFr = horzcat(statFr,stdDev);
-    rowMean = mean(statFr(:,1:num_images),2);
+    rowMean = nanmean(statFr(:,1:num_images),2);
     statFr = horzcat(statFr,rowMean);
     set(handles.uitable1,'data',statFr);    
     set(hObject,'Value',1);
@@ -196,6 +204,7 @@ function save_Callback(hObject, eventdata, handles)
 % hObject    handle to save (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global ver
 global step2 statFr fullFN num_images
 global redMinTresh redMaxTresh 
 global greenMinTresh greenMaxTresh 
@@ -219,7 +228,8 @@ if sel
     rows1{2,12} = 'blueMinTresh';    rows1{2,13} = blueMinTresh;
     rows1{2,14} = 'blueMaxTresh';    rows1{2,15} = blueMaxTresh;
     rows1{2,16} = 'modeMultip';      rows1{2,17} = modeMultip;
-    rows1{2,18} = 'AnalysisDate';            rows1{2,19} = datestr(now);
+    rows1{2,18} = 'AnalysisDate';    rows1{2,19} = datestr(now);
+    rows1{2,20} = 'GUI Version';     rows1{2,21} = ver;
     rows2 = {'MinRed';'MaxRed';'MinGreen';'MaxGreen';...
              'MinBlue';'MaxBlue';'MeanRed';'MeanGreen';...
              'RedPixels';'GreenPixels';'BluePixels';...
@@ -435,13 +445,8 @@ global redMinTresh redMaxTresh
 global greenMinTresh greenMaxTresh 
 global blueMinTresh blueMaxTresh modeMultip
 
-modeMultip = 1.2;       hObj = findobj('Tag', 'modeM');     set(hObj, 'String', num2str(modeMultip));
-redMinTresh = 12;       hObj = findobj('Tag', 'rMinTresh'); set(hObj, 'String', num2str(redMinTresh));
-redMaxTresh = 255;      hObj = findobj('Tag', 'rMaxTresh'); set(hObj, 'String', num2str(redMaxTresh));
-greenMinTresh = 12;     hObj = findobj('Tag', 'gMinTresh'); set(hObj, 'String', num2str(greenMinTresh));
-greenMaxTresh = 255;    hObj = findobj('Tag', 'gMaxTresh'); set(hObj, 'String', num2str(greenMaxTresh));
-blueMinTresh = 30;      hObj = findobj('Tag', 'bMinTresh'); set(hObj, 'String', num2str(blueMinTresh));
-blueMaxTresh = 230;     hObj = findobj('Tag', 'bMaxTresh'); set(hObj, 'String', num2str(blueMaxTresh));
+modeMultip = 1.2;       
+hObj = findobj('Tag', 'modeM');     set(hObj, 'String', num2str(modeMultip));
 
 rMinTresh = zeros(num_images,1);
 gMinTresh = zeros(num_images,1);
@@ -483,9 +488,19 @@ for i = 1:num_images
     bMinTresh(i) = modeMultip * mode(h2b);
 end
 close(hHist);
-redMinTresh   = mean(rMinTresh);
-greenMinTresh = mean(gMinTresh);
-blueMinTresh  = mean(bMinTresh);
+if isempty(redMinTresh), redMinTresh = mean(rMinTresh); end %min 12      
+hObj = findobj('Tag', 'rMinTresh'); set(hObj, 'String', num2str(redMinTresh));
+redMaxTresh = 255;      
+hObj = findobj('Tag', 'rMaxTresh'); set(hObj, 'String', num2str(redMaxTresh));
+if isempty(greenMinTresh), greenMinTresh = mean(gMinTresh); end %min 12
+hObj = findobj('Tag', 'gMinTresh'); set(hObj, 'String', num2str(greenMinTresh));
+greenMaxTresh = 255;    
+hObj = findobj('Tag', 'gMaxTresh'); set(hObj, 'String', num2str(greenMaxTresh));
+if isempty(blueMinTresh), blueMinTresh = mean(bMinTresh); end %min 30 to skip glia
+hObj = findobj('Tag', 'bMinTresh'); set(hObj, 'String', num2str(blueMinTresh));
+blueMaxTresh = 230;     
+hObj = findobj('Tag', 'bMaxTresh'); set(hObj, 'String', num2str(blueMaxTresh));
+
 
 hObj = findobj('Tag', 'rMinTresh'); set(hObj, 'String', num2str(redMinTresh));
 hObj = findobj('Tag', 'gMinTresh'); set(hObj, 'String', num2str(greenMinTresh));
@@ -809,9 +824,9 @@ function globalStats_Callback(hObject, eventdata, handles)
 % hObject    handle to globalStats (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global fileName pathName fullFN batchModeOn batchRoot
-global home globalRoot
+global home globalRoot pathName
 
+%if use fullFN, might need to update it first
 %select globalRoot
 globalRoot = uigetdir(home,'Select Root Folder');
 if isequal(globalRoot,0)
@@ -822,44 +837,36 @@ else
     disp(['User selected ', globalRoot])
 end
 
-pathName = globalRoot;
-rootDirs = dir(fullfile(globalRoot));
-n = length(rootDirs);
-if ~n 
-    disp('==No files found.');
+fn = [globalRoot '\GlobalStats.xls'];
+if exist(fn,'file')   
+    msgbox('GlobalStats.xls file already exists.');
     return
 end
 
-fn = [globalRoot '\GlobalStats.xls'];
-if exist(fn,'file')   
-    msgbox('GlobalStats.xls file exists.');
+
+pathName = globalRoot;
+rootDirs = subdir(fullfile(globalRoot, '*ConfocalStats.xls'));
+
+n = length(rootDirs);
+if ~n 
+    disp('==No Excel files found.');
     return
 end
 
 hB = waitbar(0, 'Global Analysis in progress...');
-rows0 = {{'StackName'},{'B/G Mean'},{'B/G Max'},{'B/G Sum'}};
-rows1 = {{'_'},[],[],[]};
+
+rows0 = {'StackName','R/B Mean','R/B Max','R/B Sum', ...
+                     'G/B Mean','G/B Max','G/B Sum'};
+rows1 = [];
 for i = 1:n
-    fileName = rootDirs(i).name;
-    if strcmp(fileName,'.') || strcmp(fileName,'..')
-        continue
-    end
-    fullFN = fullfile(pathName, fileName);
-    localFN = [fullFN '\' fileName '_GB_stats.xls'];
-    if ~exist(localFN,'file')   
-        disp(['==No Excel file found in ' fullFN '. Skip folder.']);
-        continue
-    end
+    localFN = rootDirs(i).name;
+%     fullFN = fullfile(pathName, fileName);
+%     localFN = [fullFN '\' fileName '_ConfocalStats.xls'];
     [newRows] = getStats(localFN);
     rows1 = vertcat(rows1,newRows);
     waitbar(i/n, hB, 'Global Analysis in progress...');    
 end
 
-% % write stats to excel file
-% if ~exist(fn,'file')
-%     xlswrite(fn,rows0); 
-% end
-% [success,message] = xlsappend(fn,rows1);
 %%
 xlswrite(fn,rows0); 
 xlsappend(fn,rows1);
@@ -869,11 +876,10 @@ close(hB);
 msgbox('Global statistics saved to Excel.');
 
 
-function [rowsData] = getStats(localFN)
-global fullFN globalRoot
+function [rowData] = getStats(localFN)
 
-%% open each folder, read statistics and append to the global
-    rowsData = [];
+%%  open each file, read statistics and append to the global
+    rowData = [];
     [ndata, text, alldata] = xlsread(localFN);
     n = length(alldata(:,1));
     i = 1; k = 0;
@@ -884,30 +890,49 @@ global fullFN globalRoot
             k = k+1;
             stackName(k) = alldata(i+1,1);
             nrFrames = alldata{i+1,3};
-            % Mean of G/B row
-            stackMean(k) = alldata{i+10,nrFrames+3}; 
-            % Max  of G/B row
-            v = alldata(i+10,[2:nrFrames+1]);
-            stackMax(k) = max( cell2mat(v)); 
-            % Sum(G)/Sum(B) row
-            vG = alldata(i+8,[2:nrFrames+1]);
-            vB = alldata(i+9,[2:nrFrames+1]);
-            sumG = sum( cell2mat(vG), 2);
+            
+            %% Mean of R/B row
+            stackMeanR(k) = alldata{i+14,nrFrames+3}; 
+            % Max  of R/B row
+            v = alldata(i+14,[2:nrFrames+1]);
+            stackMaxR(k) = max( cell2mat(v)); 
+            % Sum(R)/Sum(B) row
+            vR = alldata(i+11,[2:nrFrames+1]);
+            vB = alldata(i+13,[2:nrFrames+1]);
+            sumR = sum( cell2mat(vR), 2);
             sumB = sum( cell2mat(vB), 2);
-            stackSum(k) = sumG/sumB;
+            stackSumR(k) = sumR/sumB;
+            
+            %% Mean of G/B row
+            stackMeanG(k) = alldata{i+15,nrFrames+3}; 
+            % Max  of G/B row
+            v = alldata(i+15,[2:nrFrames+1]);
+            stackMaxG(k) = max( cell2mat(v)); 
+            % Sum(G)/Sum(B) row
+            vG = alldata(i+12,[2:nrFrames+1]);
+            sumG = sum( cell2mat(vG), 2);
+            stackSumG(k) = sumG/sumB;
             %writeStat(globalFN,stackName,stackInt);
             %rows1 = '*';
-            i = i + 10;
+            i = i + 15;
         end
         i = i + 1;
     end
-rowsData = stackName';
-c2 = num2cell(stackMean');
-rowsData = horzcat(rowsData,c2);
-c2 = num2cell(stackMax');
-rowsData = horzcat(rowsData,c2);
-c2 = num2cell(stackSum');
-rowsData = horzcat(rowsData,c2);
+rowData = stackName';
+%% R/B
+c2 = num2cell(stackMeanR');
+rowData = horzcat(rowData,c2);
+c2 = num2cell(stackMaxR');
+rowData = horzcat(rowData,c2);
+c2 = num2cell(stackSumR');
+rowData = horzcat(rowData,c2);
+%% G/B
+c2 = num2cell(stackMeanG');
+rowData = horzcat(rowData,c2);
+c2 = num2cell(stackMaxG');
+rowData = horzcat(rowData,c2);
+c2 = num2cell(stackSumG');
+rowData = horzcat(rowData,c2);
 
 
 
