@@ -48,7 +48,7 @@ guidata(hObject, handles);
 movegui(hObject,'northwest');
 
 %inint vars
-ver = '2.3';
+ver = '2.4';
 modeMultip = [];
 redMinTresh   = [];     redMaxTresh   = [];
 greenMinTresh = [];     greenMaxTresh = [];
@@ -856,7 +856,7 @@ end
 hB = waitbar(0, 'Global Analysis in progress...');
 
 rows0 = {'StackName','R/B Mean','R/B Max','R/B Sum', ...
-                     'G/B Mean','G/B Max','G/B Sum'};
+                     'G/B Mean','G/B Max','G/B Sum','B Sum'};
 rows1 = [];
 for i = 1:n
     localFN = rootDirs(i).name;
@@ -901,6 +901,7 @@ function [rowData] = getStats(localFN)
             vB = alldata(i+13,[2:nrFrames+1]);
             sumR = sum( cell2mat(vR), 2);
             sumB = sum( cell2mat(vB), 2);
+            stackSumB(k) = sumB;
             stackSumR(k) = sumR/sumB;
             
             %% Mean of G/B row
@@ -933,6 +934,9 @@ c2 = num2cell(stackMaxG');
 rowData = horzcat(rowData,c2);
 c2 = num2cell(stackSumG');
 rowData = horzcat(rowData,c2);
+%% B
+c2 = num2cell(stackSumB');
+rowData = horzcat(rowData,c2);  
 
 
 
